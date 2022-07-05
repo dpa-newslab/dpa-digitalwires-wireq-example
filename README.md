@@ -13,6 +13,18 @@ This setup was tested with:
 
 * >=Python3.8
 
+## How to receive articles in dpa-digitalwires via wireQ-API
+
+The python implementation can be found in `how_to_receive_wireq.py`.
+This is basically an executable test which shows how to receive articles in the
+dpa-digitalwires format via wireq-API.
+
+Open your terminal and type:
+```
+export BASE_URL=https://...
+python how_to_receive_wireq.py
+```
+
 ## DEQUEUE
 
 The python implementation can be found in `dequeue_import.py`.
