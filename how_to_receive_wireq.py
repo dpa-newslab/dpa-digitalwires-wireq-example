@@ -1,5 +1,4 @@
-#!/usr/bin/env python3
-
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
 # Copyright 2022 dpa-IT Services GmbH
@@ -46,7 +45,7 @@ import os
 import requests
 from time import sleep
 
-BASE_URL = os.environ.get('BASE_URL', '')
+BASE_URL = os.environ['BASE_URL'].strip('/')
 
 events = []
 
@@ -63,10 +62,13 @@ def receive_forever(database, poll_interval=30):
     Normally you receive from the wireq-API as follows:
     """
     while True:
-        response = requests.post(
-            f'{BASE_URL}/dequeue-entries.json').json()
-        process_wireq_entries(response['entries'], database)
-        sleep(poll_interval)
+        response = requests.post(f'{BASE_URL}/dequeue-entries.json')
+        response.raise_for_status()
+        res = response.json()
+        retry_after = response.headers.get('retry-after')
+        process_wireq_entries(res['entries'], database)
+        t = poll_interval if retry_after is None else retry_after
+        sleep(t)
 
 
 def process_wireq_entries(entries, database):
@@ -184,7 +186,14 @@ def some_responses_of_wireq_post_dequeue_entries():
                 'version': 3,
                 'version_created': '2022-02-01T13:00:00+01',
                 'updated': '2022-03-01T12:00:27Z',
-                'entry_id': 'e-wlaif'  # has been received before
+                'entry_id': 'e-wlaif'  # has been received before, but is not in the database
+            },
+            {
+                'urn': 'urn-1',
+                'version': 3,    # has been received before
+                'version_created': '2022-02-01T13:00:00+01',  # ...but more recent
+                'updated': '2022-03-01T12:10:00Z',
+                'entry_id': 'e-9qc8n'  # This duplicate is in the database
             },
             {
                 'urn': 'urn-2',
@@ -242,6 +251,7 @@ assert events == [
     'entry in database for urn-1 is more recent, skipping received entry e-wlaif',
     'processing entries',
     'received duplicate entry, skipping e-wlaif',
+    'received duplicate entry, skipping e-9qc8n',
     'entry in database for urn-2 is more recent, skipping received entry e-lwv2',
     'processing entries'
 ]
@@ -333,7 +343,7 @@ assert events == [
     'updating entry in database urn-1 e-9qc8n',
     'inserting new entry into database urn-2',
     'processing entries',
-    'entry in database for urn-1 is more recent, skipping received entry e-wlaif',
+    'received duplicate entry, skipping e-9qc8n',
     'entry in database for urn-2 is more recent, skipping received entry e-lwv2',
     'processing entries'
 ]
@@ -342,29 +352,3 @@ assert events == [
 We can see that only the two necessary write database operations has been
 performed -- an update (urn-1) and an insert (urn-2).
 """
-
-"""
-Third Test
-Doesn't the optimized variant work without a duplicate detector?
-"""
-
-my_database = initial_database_content()
-events = []
-seen = None   # turn off duplicate detector
-
-for response in some_responses_of_wireq_post_dequeue_entries():
-    entries = keep_only_latest_versions(response['entries'])
-    process_wireq_entries(entries, my_database)
-
-test_results[3] = {'db': my_database, 'events': events}
-
-# the effect of the import, i.e. the state of the database, is the same as in
-# the previous attempts
-assert test_results[1]['db'] == test_results[2]['db'] == test_results[3]['db']
-
-# in fact the exact same thing happens -- because keep_only_latest_versions
-# also filters out the duplicates
-assert test_results[2]['events'] == test_results[3]['events']
-
-print('\nThird Test -- Without duplicate detector the same thing happens:')
-pprint(events)

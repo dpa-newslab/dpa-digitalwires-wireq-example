@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
 # Copyright 2022 dpa-IT Services GmbH
@@ -14,47 +15,61 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 import os
 import requests
 
+from requests.exceptions import RequestException
 from time import sleep
+
 from helpers import write_article_to_disk
 
-BASE_URL = os.environ["BASE_URL"]
+logger = logging.getLogger()
+logging.getLogger('urllib3').setLevel(logging.INFO)
+
+BASE_URL = os.environ['BASE_URL'].strip('/')
+POLL_INTERVAL = 120
+TIMEOUT = 15
 
 
-def receive_and_process():
-    """ get and delete entries in one step """
-    def poll():
-        try:
-            # Copy base-URL from api-portal - format: base_url/
-            url = "{}dequeue-entries.json".format(BASE_URL)
-            response = requests.post(url)
-        except Exception as e:
-            raise e
+class DummyStore(object):
+    """
+    Store articles locally in TMP_DATA_DIR.
+    """
+    def put(self, entries):
+        for entry in entries:
+            write_article_to_disk(entry)
 
-        return response.json().get("entries", [])
 
-    inner_poll_interval = 15
-    outer_poll_interval = 30
+def receive_forever(store):
+    """
+    Receive entries from wireq and immediately save them to some store
+    component.
+    If wireq suggests to retry-after a specific period of time, we follow
+    that hint. (this is useful for situations when there are more entries to
+    get or after a 429 'too many requests' error)
+    """
+    delay_hint = None
     while True:
-        while entries := poll():
-            for entry in entries:
-                try:
-                    process(entry)
-                except Exception as e:
-                    raise e
-            sleep(inner_poll_interval)
+        try:
+            response = requests.post(
+                f'{BASE_URL}/dequeue-entries.json', timeout=TIMEOUT)
+        except RequestException as e:
+            logger.error(e)
 
-        sleep(outer_poll_interval)
+        response.raise_for_status()
+        entries = response.json().get('entries', [])
+        store.put(entries)
 
-
-def process(entry):
-    """ Process article """
-    # TODO: Transform and import dpa-digitalwires entry
-    # Write content to local file system
-    return write_article_to_disk(entry)
+        delay_hint = response.headers.get('retry-after')
+        t = int(POLL_INTERVAL if delay_hint is None else delay_hint)
+        logger.info(f'waiting for {t}s ...')
+        sleep(t)
 
 
 if __name__ == "__main__":
-    receive_and_process()
+    logging.basicConfig()
+    logger.setLevel(logging.DEBUG)
+
+    store = DummyStore()
+    receive_forever(store)
