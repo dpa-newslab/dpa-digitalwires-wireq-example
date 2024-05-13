@@ -13,6 +13,12 @@ This setup was tested with:
 
 * >=Python3.8
 
+Install requirements by calling:
+
+```
+pip install -r requirements.txt
+```
+
 ## How to receive articles in dpa-digitalwires via wireQ-API
 
 The python implementation can be found in `how_to_receive_wireq.py`.

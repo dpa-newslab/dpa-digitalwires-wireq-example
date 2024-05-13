@@ -22,23 +22,25 @@ import requests
 from requests.exceptions import RequestException
 from time import sleep
 
-from helpers import write_article_to_disk
+from importer import import_entry_with_assets
 
 logger = logging.getLogger()
 logging.getLogger('urllib3').setLevel(logging.INFO)
 
 BASE_URL = os.environ['BASE_URL'].strip('/')
+OUTPUT_DIR = './wireq-output'
 POLL_INTERVAL = 120
 TIMEOUT = 15
 
 
-class DummyStore(object):
+class WireqReceiver(object):
     """
-    Store articles locally in TMP_DATA_DIR.
+    Store articles locally in OUTPUT_DIR.
     """
     def put(self, entries):
         for entry in entries:
-            write_article_to_disk(entry)
+            print('entry...', entry)
+            import_entry_with_assets(OUTPUT_DIR, entry)
 
 
 def receive_forever(store):
@@ -71,5 +73,5 @@ if __name__ == "__main__":
     logging.basicConfig()
     logger.setLevel(logging.DEBUG)
 
-    store = DummyStore()
+    store = WireqReceiver()
     receive_forever(store)
