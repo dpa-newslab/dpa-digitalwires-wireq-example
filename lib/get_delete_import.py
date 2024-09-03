@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright 2022 dpa-IT Services GmbH
+# Copyright 2024 dpa-IT Services GmbH
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,9 +20,9 @@ from collections import Counter
 from os import environ
 from requests.exceptions import RequestException
 
-from importer import session_with_exponential_backoff, import_entry_with_assets
+from .importer import session_with_exponential_backoff, import_entry_with_assets
 
-BASE_URL = environ["BASE_URL"].strip('/')
+BASE_URL = ""
 OUTPUT_DIR = './wireq-output'
 OUTER_POLL_INTERVAL = 30
 MAX_INNER_POLLS = 20
@@ -136,22 +136,27 @@ class WireqReceiver(object):
         while True:
             delay()
 
-            for entry in self.receive_entries_with_retry_hint():
-                entry_id = entry['entry_id']
+            self.receive_and_import_once()
 
-                if entry_id not in self.seen:
-                    should_retry_import = self.import_with_retry(entry)
+    def receive_and_import_once(self):
+        for entry in self.receive_entries_with_retry_hint():
+            entry_id = entry['entry_id']
 
-                    if should_retry_import:
-                        continue
+            if entry_id not in self.seen:
+                should_retry_import = self.import_with_retry(entry)
 
-                    self.seen.add(entry_id)
-                else:
-                    print(f'skipping import for duplicate entry {entry_id}')
+                if should_retry_import:
+                    continue
 
-                self.delete_from_queue(entry)
+                self.seen.add(entry_id)
+            else:
+                print(f'skipping import for duplicate entry {entry_id}')
+
+            self.delete_from_queue(entry)
+
 
 
 if __name__ == "__main__":
+    BASE_URL = environ["BASE_URL"].strip('/')
     r = WireqReceiver(base_url=BASE_URL, importer=import_entry_with_assets)
     r.receive_and_import_forever()

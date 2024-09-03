@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright 2022 dpa-IT Services GmbH
+# Copyright 2024 dpa-IT Services GmbH
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -22,12 +22,12 @@ import requests
 from requests.exceptions import RequestException
 from time import sleep
 
-from importer import import_entry_with_assets
+from .importer import import_entry_with_assets
 
 logger = logging.getLogger()
 logging.getLogger('urllib3').setLevel(logging.INFO)
 
-BASE_URL = os.environ['BASE_URL'].strip('/')
+BASE_URL = ''
 OUTPUT_DIR = './wireq-output'
 POLL_INTERVAL = 120
 TIMEOUT = 15
@@ -37,10 +37,27 @@ class WireqReceiver(object):
     """
     Store articles locally in OUTPUT_DIR.
     """
+
     def put(self, entries):
         for entry in entries:
-            print('entry...', entry)
             import_entry_with_assets(OUTPUT_DIR, entry)
+
+
+def receive_once(store):
+    try:
+        response = requests.post(
+            f'{BASE_URL}/dequeue-entries.json', timeout=TIMEOUT)
+    except RequestException as e:
+        logger.error(e)
+
+    response.raise_for_status()
+    entries = response.json().get('entries', [])
+    store.put(entries)
+
+    delay_hint = response.headers.get('retry-after')
+    t = int(POLL_INTERVAL if delay_hint is None else delay_hint)
+    logger.info(f'waiting for {t}s ...')
+    sleep(t)
 
 
 def receive_forever(store):
@@ -53,23 +70,11 @@ def receive_forever(store):
     """
     delay_hint = None
     while True:
-        try:
-            response = requests.post(
-                f'{BASE_URL}/dequeue-entries.json', timeout=TIMEOUT)
-        except RequestException as e:
-            logger.error(e)
-
-        response.raise_for_status()
-        entries = response.json().get('entries', [])
-        store.put(entries)
-
-        delay_hint = response.headers.get('retry-after')
-        t = int(POLL_INTERVAL if delay_hint is None else delay_hint)
-        logger.info(f'waiting for {t}s ...')
-        sleep(t)
+        receive_once(store)
 
 
 if __name__ == "__main__":
+    BASE_URL = os.environ['BASE_URL'].strip('/')
     logging.basicConfig()
     logger.setLevel(logging.DEBUG)
 
