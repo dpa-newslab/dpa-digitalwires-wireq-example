@@ -26,7 +26,7 @@ from urllib3.util import Retry
 def session_with_exponential_backoff():
     s = Session()
     retry = Retry(total=3,
-                  status_forcelist=[429, 500, 502, 503, 504],
+                  status_forcelist=[404, 429, 500, 502, 503, 504],
                   respect_retry_after_header=True,
                   backoff_factor=1)
     s.mount('https://', HTTPAdapter(max_retries=retry))
