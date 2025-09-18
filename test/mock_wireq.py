@@ -257,17 +257,14 @@ class MockQueue:
         keys = [entry.get('receipt') for entry in self.hidden_queue]
         if key in self.deleted_urls:
             responses.post(url,
-                           json={},
                            status=410,
                            headers={})
         elif key in self.timed_out_receipts:
             responses.post(url,
-                           json={},
                            status=410,
                            headers={})
         elif key not in keys:
             responses.post(url,
-                           json={},
                            status=404,
                            headers={})
         else:
@@ -278,7 +275,6 @@ class MockQueue:
                     self.hidden_queue.remove(entry)
                     self.deleted_urls.append(key)
                     responses.post(url,
-                                   json={},
                                    status=204,
                                    headers={})
 
@@ -344,7 +340,6 @@ class MockQueue:
         """
         if 'https://dummy.co/entry' not in url:
             responses.post(url,
-                           json={},
                            status=404,
                            headers={})
         else:

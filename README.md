@@ -4,14 +4,14 @@ This repository shows best practices of how to import the dpa-digitalwires
 format via wireQ-API and stores the received articles to the local file system.
 
 There are two approaches:
-1. [Fast and efficient retrieval of all new messages via POST request `dequeue_entries.json`](#dequeue)
-2. [Fast and efficient retrieval of all new messages via GET and DELETE request](#get-and-delete)
+1. [Fast and efficient retrieval of all new entries via POST request `dequeue_entries.json`](#dequeue)
+2. [Fast and efficient retrieval of all new entries via GET and DELETE request](#get-and-delete)
 
 ## Requirements
 
 This setup was tested with:
 
-* >=Python3.9
+* >=Python3.12
 
 Install requirements by calling:
 
@@ -19,40 +19,53 @@ Install requirements by calling:
 pip install -r requirements.txt
 ```
 
-## How to receive articles in dpa-digitalwires via wireQ-API
+## Getting started
 
-The python implementation can be found in `how_to_receive_wireq.py`.
-This is basically an executable test which shows how to receive articles in the
-dpa-digitalwires format via wireq-API.
+Getting started scripts are available in the `getting-started` folder.
 
-Open your terminal and type:
+Two common use cases are provided.
+Please copy the `base-URL` from your setup in the [API-Portal](https://api-portal.dpa-newslab.com). In the given example code the environment variable `BASE_URL` is used.
+
+1. Radio customers who want to get the audios:
 ```
 export BASE_URL=https://...
-python how_to_receive_wireq.py
+python getting-started/how_to_receive_wireq_audio.py
+```
+
+2. Customers who are just interested in the article text:
+```
+export BASE_URL=https://...
+python getting-started/how_to_receive_wireq_text.py
+```
+
+3. An executable test which shows how to receive articles in the dpa-digitalwires format via wireq-API.
+```
+export BASE_URL=https://...
+python getting-started/how_to_receive_wireq.py
 ```
 
 ## DEQUEUE
 
-The python implementation can be found in `lib/dequeue_import.py`.
+The Python implementation can be found in `lib/dequeue_import.py`.
 Please copy the `base-URL` from your setup in the [API-Portal](https://api-portal.dpa-newslab.com).
 In the given example code the environment variable `BASE_URL` is used.
 
 Open your terminal and type:
 ```
 export BASE_URL=https://...
-npm run dequeue-import
+python -m lib.dequeue_import
 ```
 
 ## GET and DELETE
 
-The python implementation can be found in `lib/get_delete_import.py`.
+The Python implementation can be found in `lib/get_delete_import.py`.
 Please copy the `base-URL` from your setup in the [API-Portal](https://api-portal.dpa-newslab.com).
 In the given example code the environment variable `BASE_URL` is used.
 
 Open your terminal and type:
 ```
 export BASE_URL=https://...
-npm run get-delete-import
+python -m lib.get_delete_import
 ```
 
 # The wireQ-Fake local server
@@ -67,8 +80,7 @@ values in the `.env.example` are useful baseline values to use in your own `.env
 
 ## Starting the wireQ-fake:
 ```
-npm install
-npm run start-localserver
+python -m test.local_server.start_server
 ```
 
 The wireQ-fake should now run under http://127.0.0.1:8080
@@ -77,8 +89,8 @@ The wireQ-fake should now run under http://127.0.0.1:8080
 
 If wireQ-fake is running:
 ```
-npm run test-wireq
-npm run test-mock
+pytest -s test/test_live_and_local_wireq.py
+pytest -s test/test_mock_wireq.py
 ```
 
 ## Changing wireQ-fake parameters
